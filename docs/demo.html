@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>껄무새 상회 — 후회 영수증 발급기</title>
+<style>
+  @font-face{
+    font-family:'DungGeunMo';
+    src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/DungGeunMo.woff') format('woff');
+    font-display:swap;
+  }
+  :root{
+    --desk:#EFB92B;        /* 방앗간 머스터드 */
+    --paper:#FDFBF2;       /* 감열지 */
+    --ink:#191612;         /* 잉크 */
+    --ink-soft:#6E675C;
+    --stamp:#D6392E;       /* 도장 인주 */
+    --parrot:#2E9E5B;
+    --mono:'DungGeunMo','Courier New',ui-monospace,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--desk);
+    font-family:var(--mono);
+    color:var(--ink);
+    display:flex;flex-direction:column;align-items:center;
+    min-height:100dvh;padding:26px 0 80px;
+    background-image:radial-gradient(rgba(0,0,0,.045) 1.2px, transparent 1.2px);
+    background-size:22px 22px;
+  }
+  .desk-note{
+    font-size:12px;color:rgba(45,35,10,.65);letter-spacing:.28em;margin-bottom:14px;font-weight:400;
+  }
+
+  /* ================= 영수증 종이 ================= */
+  .receipt{
+    width:min(92vw,380px);
+    background:var(--paper);
+    box-shadow:0 14px 0 rgba(0,0,0,.14);
+    position:relative;
+  }
+  .tear-top,.tear-bot{height:12px;width:100%}
+  .tear-top{
+    background:
+      linear-gradient(135deg, var(--paper) 8px, transparent 0) 0 0/16px 12px repeat-x,
+      linear-gradient(-135deg, var(--paper) 8px, transparent 0) 8px 0/16px 12px repeat-x;
+    margin-bottom:-1px;
+  }
+  .tear-bot{
+    background:
+      linear-gradient(45deg, var(--paper) 8px, transparent 0) 0 0/16px 12px repeat-x,
+      linear-gradient(-45deg, var(--paper) 8px, transparent 0) 8px 0/16px 12px repeat-x;
+    margin-top:-1px;
+  }
+  .inner{padding:20px 20px 26px}
+
+  /* ================= 공통 활자 ================= */
+  .c{text-align:center}
+  .h-title{font-size:24px;letter-spacing:.3em;text-indent:.3em;margin:6px 0 2px}
+  .h-sub{font-size:12px;color:var(--ink-soft);letter-spacing:.06em}
+  .hr{border:none;border-top:2px dashed var(--ink);margin:14px 0;opacity:.75}
+  .hr.thin{border-top:1px dashed rgba(25,22,18,.4);margin:10px 0}
+  .sec-head{font-size:14px;letter-spacing:.14em;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .sec-head::before,.sec-head::after{content:'';flex:1;border-top:1px solid var(--ink)}
+  .fine{font-size:10px;color:var(--ink-soft);line-height:1.7;letter-spacing:.02em}
+
+  /* ================= 주문 행 ================= */
+  .item{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 4px;cursor:pointer;user-select:none;
+    border-bottom:1px dotted rgba(25,22,18,.25);
+    transition:background .12s;
+  }
+  .item:active{background:rgba(25,22,18,.05)}
+  .item .ic{width:26px;height:26px;flex-shrink:0}
+  .item .ic svg{width:100%;height:100%;fill:var(--ink)}
+  .item .nm{font-size:15px}
+  .item .price{margin-left:auto;font-size:13px;color:var(--ink-soft)}
+  .item .chk{width:18px;font-size:15px;color:var(--stamp);visibility:hidden}
+  .item.on .chk{visibility:visible}
+  .item.on .nm{font-weight:700}
+  .item.on .price{color:var(--ink)}
+  .qty{
+    display:none;align-items:center;gap:12px;justify-content:flex-end;
+    padding:4px 4px 10px 40px;font-size:13px;
+    border-bottom:1px dotted rgba(25,22,18,.25);
+  }
+  .qty.show{display:flex}
+  .qty .lbl{color:var(--ink-soft);font-size:11px;margin-right:auto}
+  .kbtn{
+    width:28px;height:28px;border:2px solid var(--ink);background:var(--paper);
+    font-family:var(--mono);font-size:16px;cursor:pointer;line-height:1;color:var(--ink);
+  }
+  .kbtn:active{background:var(--ink);color:var(--paper)}
+  .qv{min-width:78px;text-align:center;font-size:13px}
+
+  .sum-row{display:flex;align-items:baseline;gap:6px;font-size:15px;margin-top:12px}
+  .sum-row .dots{flex:1;border-bottom:2px dotted var(--ink);transform:translateY(-4px)}
+  .sum-row .amt{font-size:17px}
+
+  /* ================= 잉크 버튼 ================= */
+  .inkbtn{
+    display:block;width:100%;margin-top:16px;
+    background:var(--ink);color:var(--paper);
+    border:none;font-family:var(--mono);font-size:16px;letter-spacing:.24em;text-indent:.24em;
+    padding:15px 0;cursor:pointer;
+  }
+  .inkbtn:active{transform:translateY(2px)}
+  .inkbtn:disabled{opacity:.2;cursor:default}
+  .inkbtn.red{background:var(--stamp)}
+  .txtbtn{background:none;border:none;font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-decoration:underline;cursor:pointer;display:block;margin:14px auto 0}
+
+  /* ================= 옵션(기간/종목) ================= */
+  .opt-row{display:flex;flex-wrap:wrap;gap:8px}
+  .opt{
+    border:2px solid var(--ink);background:var(--paper);color:var(--ink);
+    font-family:var(--mono);font-size:13px;padding:8px 12px;cursor:pointer;
+  }
+  .opt.on{background:var(--ink);color:var(--paper)}
+  .opt.on.red{background:var(--stamp);border-color:var(--stamp)}
+
+  /* ================= 프린트 애니메이션 ================= */
+  .pline{overflow:hidden}
+  .printing .pline{
+    animation:feed .34s steps(4) both;
+    animation-delay:calc(var(--i)*.13s);
+  }
+  @keyframes feed{
+    from{max-height:0;opacity:0;transform:translateY(-4px)}
+    to{max-height:200px;opacity:1;transform:none}
+  }
+
+  /* ================= 결과 ================= */
+  .kv{display:flex;align-items:baseline;font-size:14px;padding:3px 0}
+  .kv .k{color:var(--ink-soft)}
+  .kv .dots{flex:1;border-bottom:1px dotted rgba(25,22,18,.35);margin:0 8px;transform:translateY(-3px)}
+  .big-label{font-size:12px;color:var(--ink-soft);letter-spacing:.2em;margin-top:14px}
+  .big-num{
+    font-size:clamp(34px,9.5vw,40px);letter-spacing:-.01em;margin-top:2px;
+    font-variant-numeric:tabular-nums;
+  }
+  .diff-num{font-size:16px;margin-top:6px}
+  .diff-num.gain{color:var(--stamp)}
+  .diff-num.loss{color:var(--ink-soft)}
+
+  /* 도장 */
+  .stamp-zone{position:relative;display:flex;align-items:center;gap:14px;margin:18px 0 4px;min-height:84px}
+  .stamp{
+    width:78px;height:78px;border:4px solid var(--stamp);border-radius:50%;
+    color:var(--stamp);display:flex;align-items:center;justify-content:center;
+    font-size:34px;letter-spacing:0;flex-shrink:0;
+    transform:rotate(-12deg);
+    mix-blend-mode:multiply;
+    opacity:.9;
+    box-shadow:inset 0 0 0 2px rgba(214,57,46,.25);
+  }
+  .stamp.slam{animation:slam .5s cubic-bezier(.2,1.6,.4,1) both;animation-delay:1.7s}
+  @keyframes slam{
+    0%{transform:rotate(-12deg) scale(3);opacity:0}
+    60%{transform:rotate(-12deg) scale(.92);opacity:.95}
+    100%{transform:rotate(-12deg) scale(1);opacity:.9}
+  }
+  .say-zone{flex:1}
+  .say{font-size:15px;line-height:1.5;font-weight:700}
+  .conv{font-size:12px;color:var(--ink-soft);margin-top:6px;line-height:1.6}
+  .conv b{color:var(--stamp);font-weight:700}
+
+  /* 앵무새 플랫 svg */
+  .parrot-fig{width:46px;height:46px;flex-shrink:0}
+  .parrot-fig.lv1{animation:tilt 1.8s ease-in-out infinite}
+  .parrot-fig.lv2{animation:shiver .4s linear infinite}
+  .parrot-fig.lv3{transform:rotate(115deg);animation:none}
+  .parrot-fig.lv4{filter:grayscale(1) opacity(.55);animation:rise 2.6s ease-in-out infinite}
+  .parrot-fig.relief{animation:tilt 2.8s ease-in-out infinite}
+  @keyframes tilt{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
+  @keyframes shiver{0%,100%{transform:translateX(-1.5px)}50%{transform:translateX(1.5px)}}
+  @keyframes rise{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+
+  /* 미니 잉크 차트 */
+  .chartbox{margin-top:14px}
+  .chartbox svg{width:100%;display:block}
+  .chart-cap{display:flex;justify-content:space-between;font-size:10px;color:var(--ink-soft);margin-top:4px}
+
+  /* 바코드 */
+  .barcode{
+    height:40px;margin:18px auto 4px;width:82%;
+    background:repeating-linear-gradient(90deg,
+      var(--ink) 0 2px, transparent 2px 4px,
+      var(--ink) 4px 7px, transparent 7px 9px,
+      var(--ink) 9px 10px, transparent 10px 14px,
+      var(--ink) 14px 18px, transparent 18px 20px);
+  }
+  .barcode-num{font-size:10px;letter-spacing:.5em;text-indent:.5em;color:var(--ink-soft)}
+
+  .hidden{display:none}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none!important;transition:none!important}
+    .printing .pline{max-height:none;opacity:1}
+    html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+
+<div class="desk-note">주식회사 껄무새상회 · 후회정산 전문</div>
+
+<div class="receipt">
+  <div class="tear-top"></div>
+  <div class="inner">
+
+    <!-- ============ 머리말 ============ -->
+    <div class="c">
+      <svg class="parrot-fig" id="headParrot" viewBox="0 0 48 48" style="margin:0 auto;display:block">
+        <use href="#gParrot"/>
+      </svg>
+      <div class="h-title">껄무새상회</div>
+      <div class="h-sub">후회 영수증 발급기 · 24시간 영업</div>
+      <div class="h-sub" id="dateLine"></div>
+    </div>
+    <hr class="hr">
+
+    <!-- ============ ① 주문 ============ -->
+    <section id="secOrder">
+      <div class="sec-head">주 문 내 역</div>
+      <div class="fine c" style="margin-bottom:8px">※ 평소 새는 돈을 주문하듯 골라주세요</div>
+      <div id="itemList"></div>
+      <div class="sum-row"><span>월 합계</span><span class="dots"></span><span class="amt" id="monthlyTotal">0원</span></div>
+      <button class="inkbtn" id="btnToCond" disabled onclick="openCond()">주문 넣기</button>
+    </section>
+
+    <!-- ============ ② 조건 ============ -->
+    <section id="secCond" class="hidden">
+      <hr class="hr">
+      <div class="sec-head">정 산 조 건</div>
+      <div class="fine" style="margin-bottom:6px">회한 기간</div>
+      <div class="opt-row" id="periodOpts"></div>
+      <div class="fine" style="margin:14px 0 6px">그 돈으로 샀다면 (환생 종목)</div>
+      <div class="opt-row" id="assetOpts"></div>
+      <button class="inkbtn red" onclick="printResult(true)">후회 정산 시작</button>
+    </section>
+
+    <!-- ============ ③ 결과 ============ -->
+    <section id="secResult" class="hidden">
+      <hr class="hr">
+      <div class="sec-head pline" style="--i:0">정 산 결 과</div>
+
+      <div class="pline" style="--i:1">
+        <div class="kv"><span class="k">쓴 돈 합계</span><span class="dots"></span><span id="rSpent">-</span></div>
+        <div class="kv"><span class="k">회한 기간</span><span class="dots"></span><span id="rYears">-</span></div>
+        <div class="kv"><span class="k">환생 종목</span><span class="dots"></span><span id="rAsset">-</span></div>
+      </div>
+
+      <div class="pline c" style="--i:2">
+        <div class="big-label">만 약 에 잔 고</div>
+        <div class="big-num" id="rValue">0원</div>
+        <div class="diff-num" id="rDiff"></div>
+      </div>
+
+      <div class="pline" style="--i:3">
+        <div class="stamp-zone">
+          <div class="stamp slam" id="stamp">껄</div>
+          <svg class="parrot-fig" id="rParrot" viewBox="0 0 48 48"><use href="#gParrot"/></svg>
+          <div class="say-zone">
+            <div class="say" id="rSay">…</div>
+            <div class="conv" id="rConv"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pline chartbox" style="--i:4">
+        <svg id="chart" viewBox="0 0 320 110" preserveAspectRatio="none"></svg>
+        <div class="chart-cap"><span>┈┈ 그냥 쓴 돈</span><span id="chartCapR">── 투자했다면</span></div>
+      </div>
+
+      <div class="pline" style="--i:5">
+        <hr class="hr thin">
+        <div class="fine" style="margin-bottom:6px">다른 종목으로 재정산</div>
+        <div class="opt-row" id="assetToggle"></div>
+      </div>
+
+      <div class="pline" style="--i:6">
+        <button class="inkbtn red" onclick="openShare()">이 영수증 자랑하기</button>
+        <button class="txtbtn" onclick="restart()">전표 취소하고 처음부터</button>
+      </div>
+
+      <div class="pline c" style="--i:7">
+        <div class="barcode"></div>
+        <div class="barcode-num" id="bcNum">8 8 0 1 4 7 2 5 8 8</div>
+        <hr class="hr thin">
+        <p class="fine">교환·환불 불가 (지나간 소비는 원래 그렇습니다)<br>
+        본 영수증은 데모 데이터 기반 가상 시뮬레이션으로<br>
+        투자 권유가 아니며, 과거 수익률은 미래를 보장하지 않습니다.</p>
+        <p class="fine" style="margin-top:8px">고객센터: 껄무새에게 직접 문의 🦜<br>WIFI: kkeolmusae / PW: salkkeol</p>
+      </div>
+    </section>
+
+  </div>
+  <div class="tear-bot"></div>
+</div>
+
+<!-- ============ 플랫 아이콘 & 앵무새 정의 ============ -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <!-- 앵무새 (플랫) -->
+    <g id="gParrot">
+      <ellipse cx="24" cy="27" rx="15" ry="17" fill="#2E9E5B"/>
+      <ellipse cx="24" cy="32" rx="9" ry="10" fill="#8FD6A9"/>
+      <circle cx="24" cy="14" r="10" fill="#2E9E5B"/>
+      <circle cx="27.5" cy="12.5" r="3.4" fill="#FDFBF2"/>
+      <circle cx="28.3" cy="12.5" r="1.6" fill="#191612"/>
+      <path d="M33 14 L42 16.5 L33 20 Z" fill="#EFB92B"/>
+      <path d="M12 34 Q6 40 10 46 L17 40 Z" fill="#D6392E"/>
+      <path d="M17 25 Q11 31 15 38 Q20 34 20 28 Z" fill="#247B47"/>
+    </g>
+    <g id="icCoffee"><path d="M4 7h13v9a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V7zm13 2h2a3 3 0 0 1 0 6h-2v-2h2a1 1 0 0 0 0-2h-2V9zM7 2c0 1.2-1.5 1.6-1.5 3H7c0-1.2 1.5-1.6 1.5-3H7zm4 0c0 1.2-1.5 1.6-1.5 3H11c0-1.2 1.5-1.6 1.5-3H11z"/></g>
+    <g id="icBurger"><path d="M3 9a9 6.5 0 0 1 18 0H3zm0 2h18v3H3v-3zm0 5h18v1a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-1z"/></g>
+    <g id="icTaxi"><path d="M9 3h6v3H9V3zM4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2l1 5v5h-3v-2H6v2H3v-5l1-5zm2 1v3h12V9H6z"/></g>
+    <g id="icCig"><path d="M2 14h16v4H2v-4zm17 0h3v4h-3v-4zM17 4c-2 2 2 3 0 5h2c2-2-2-3 0-5h-2z"/></g>
+    <g id="icBeer"><path d="M5 8h11v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8zm11 2h2a3 3 0 0 1 0 6h-2v-2h2a1 1 0 0 0 0-2h-2v-2zM5 6a3 3 0 0 1 5-2 3 3 0 0 1 5 1l1 1v2H4l1-2z"/></g>
+    <g id="icGame"><path d="M6 7h12a5 5 0 0 1 5 5v3a3 3 0 0 1-5.5 1.6L16 15H8l-1.5 1.6A3 3 0 0 1 1 15v-3a5 5 0 0 1 5-5zm1 3v2H5v2h2v-1h2v-2H8v-1H7zm10 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm2 3a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></g>
+    <g id="icShop"><path d="M7 7a5 5 0 0 1 10 0h3l-1 14H5L4 7h3zm2 0h6a3 3 0 0 0-6 0z"/></g>
+    <g id="icTv"><path d="M3 7h18v12H3V7zm5-4 4 3 4-3 1 1.4L13 7h-2L7 4.4 8 3z"/></g>
+  </defs>
+</svg>
+
+<!-- ============ 공유 모달 ============ -->
+<div id="shareModal" style="display:none;position:fixed;inset:0;background:rgba(30,22,5,.72);z-index:50;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:20px" onclick="this.style.display='none'">
+  <div class="receipt" style="width:min(80vw,270px)" onclick="event.stopPropagation()">
+    <div class="tear-top"></div>
+    <div class="inner c">
+      <svg class="parrot-fig" viewBox="0 0 48 48" style="margin:0 auto;display:block" id="shParrotFig"><use href="#gParrot"/></svg>
+      <div class="h-title" style="font-size:18px">후회영수증</div>
+      <hr class="hr">
+      <p id="shLine" style="font-size:14px;line-height:1.7;word-break:keep-all"></p>
+      <hr class="hr thin">
+      <div class="big-label">놓 친 돈</div>
+      <div class="big-num" id="shDiff" style="font-size:26px;color:var(--stamp)">-</div>
+      <div class="barcode" style="margin-top:14px"></div>
+      <div class="fine" style="margin-top:8px">껄무새상회 · kkeolmusae.app</div>
+    </div>
+    <div class="tear-bot"></div>
+  </div>
+  <button class="inkbtn" style="width:auto;padding:12px 30px" onclick="document.getElementById('shareModal').style.display='none'">닫기</button>
+</div>
+
+<script>
+/* ================= 데이터 ================= */
+const PRESETS=[
+  {id:'coffee',ic:'icCoffee',nm:'아메리카노',amt:4500, unit:500,  freq:5,per:'week', obj:'커피'},
+  {id:'deliv', ic:'icBurger',nm:'야식 배달', amt:22000,unit:1000, freq:3,per:'week', obj:'배달'},
+  {id:'taxi',  ic:'icTaxi',  nm:'막차 놓친 택시',amt:12000,unit:1000,freq:2,per:'week',obj:'택시'},
+  {id:'cig',   ic:'icCig',   nm:'담배',      amt:4500, unit:500,  freq:7,per:'week', obj:'담배'},
+  {id:'beer',  ic:'icBeer',  nm:'한잔만',    amt:40000,unit:5000, freq:1,per:'week', obj:'술'},
+  {id:'game',  ic:'icGame',  nm:'게임 현질', amt:30000,unit:5000, freq:2,per:'month',obj:'현질'},
+  {id:'shop',  ic:'icShop',  nm:'충동구매',  amt:50000,unit:10000,freq:2,per:'month',obj:'충동구매'},
+  {id:'ott',   ic:'icTv',    nm:'안 보는 OTT',amt:17000,unit:1000,freq:1,per:'month',obj:'구독'},
+];
+/* 데모용 수치 — 실서비스에선 실제 월별 시세 사용 */
+const ASSETS=[
+  {id:'sp500',nm:'S&P500',  cagr:0.12,vol:0.05},
+  {id:'ndx',  nm:'나스닥',  cagr:0.17,vol:0.08},
+  {id:'aapl', nm:'애플',    cagr:0.20,vol:0.10},
+  {id:'tsla', nm:'테슬라',  cagr:0.30,vol:0.22},
+  {id:'nvda', nm:'엔비디아',cagr:0.55,vol:0.25},
+  {id:'sams', nm:'삼성전자',cagr:0.04,vol:0.09},
+  {id:'btc',  nm:'비트코인',cagr:0.45,vol:0.38},
+  {id:'gold', nm:'금',      cagr:0.10,vol:0.04},
+];
+const PERIODS=[{y:1,l:'1년치'},{y:3,l:'3년치'},{y:5,l:'5년치'},{y:10,l:'10년치'}];
+const CONV=[
+  {max:5e5,t:'에어팟 맥스 하나가 그대로 증발'},
+  {max:2e6,t:'<b>제주도 한 달 살기</b> 비용을 마심'},
+  {max:5e6,t:'이 돈이면 <b>유럽 왕복 3번</b>'},
+  {max:1.5e7,t:'<b>아반떼 옵션 풀</b>로 넣을 돈'},
+  {max:5e7,t:'<b>전세 보증금 올릴 돈</b>이 이렇게…'},
+  {max:Infinity,t:'이쯤 되면 껄무새 아니고 <b>껄공룡</b>'},
+];
+const LEVELS=[
+  {max:1e6, cls:'lv1',say:'음? 살 껄 그랬나?'},
+  {max:5e6, cls:'lv2',say:'아… 아… 살 껄…'},
+  {max:2e7, cls:'lv3',say:'껄!!! 왜 안 샀어!!!'},
+  {max:Infinity,cls:'lv4',say:'…나 먼저 간다… 껄…'},
+];
+
+const state={sel:{},years:3,asset:'sp500'};
+const $=id=>document.getElementById(id);
+const won=n=>Math.round(n).toLocaleString('ko-KR')+'원';
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* 날짜줄 */
+const now=new Date();
+$('dateLine').textContent=`발행 ${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} NO.${String(Math.floor(Math.random()*9000)+1000)}`;
+
+/* ================= ① 주문 ================= */
+function renderItems(){
+  $('itemList').innerHTML=PRESETS.map(p=>`
+    <div class="item" id="it_${p.id}" onclick="toggleItem('${p.id}')">
+      <span class="chk">V</span>
+      <span class="ic"><svg viewBox="0 0 24 24"><use href="#${p.ic}"/></svg></span>
+      <span class="nm">${p.nm}</span>
+      <span class="price">${p.amt.toLocaleString()}원/회</span>
+    </div>
+    <div class="qty" id="q_${p.id}">
+      <span class="lbl">${p.per==='week'?'주':'월'} 횟수·단가</span>
+      <button class="kbtn" onclick="event.stopPropagation();adj('${p.id}','freq',-1)">-</button>
+      <span class="qv" id="qv_${p.id}"></span>
+      <button class="kbtn" onclick="event.stopPropagation();adj('${p.id}','freq',1)">+</button>
+      <button class="kbtn" onclick="event.stopPropagation();adj('${p.id}','amt',-1)">↓</button>
+      <button class="kbtn" onclick="event.stopPropagation();adj('${p.id}','amt',1)">↑</button>
+    </div>`).join('');
+}
+function qvText(id){const s=state.sel[id];return `${s.freq}회×${(s.amt/1000)}천`;}
+function toggleItem(id){
+  const it=$('it_'+id), q=$('q_'+id);
+  if(state.sel[id]){delete state.sel[id];it.classList.remove('on');q.classList.remove('show');}
+  else{const p=PRESETS.find(x=>x.id===id);state.sel[id]={amt:p.amt,freq:p.freq,per:p.per};it.classList.add('on');q.classList.add('show');$('qv_'+id).textContent=qvText(id);}
+  updateTotal();
+}
+function adj(id,key,dir){
+  const p=PRESETS.find(x=>x.id===id),s=state.sel[id];if(!s)return;
+  if(key==='amt')s.amt=Math.max(p.unit,s.amt+dir*p.unit);
+  else s.freq=Math.max(1,s.freq+dir);
+  $('qv_'+id).textContent=qvText(id);
+  updateTotal();
+}
+function monthlySpend(){let m=0;for(const id in state.sel){const s=state.sel[id];m+=s.amt*(s.per==='week'?s.freq*4.345:s.freq);}return m;}
+function updateTotal(){
+  $('monthlyTotal').textContent=won(monthlySpend());
+  $('btnToCond').disabled=Object.keys(state.sel).length===0;
+}
+
+/* ================= ② 조건 ================= */
+function openCond(){
+  renderCond();
+  $('secCond').classList.remove('hidden');
+  $('secCond').scrollIntoView({block:'start'});
+}
+function renderCond(){
+  $('periodOpts').innerHTML=PERIODS.map(p=>
+    `<button class="opt ${p.y===state.years?'on':''}" onclick="state.years=${p.y};renderCond()">${p.l}</button>`).join('');
+  $('assetOpts').innerHTML=ASSETS.map(a=>
+    `<button class="opt ${a.id===state.asset?'on':''}" onclick="state.asset='${a.id}';renderCond()">${a.nm}</button>`).join('');
+}
+
+/* ================= 시뮬레이션 ================= */
+function simulate(assetId){
+  const a=ASSETS.find(x=>x.id===assetId);
+  const months=state.years*12,c=monthlySpend();
+  const rm=Math.pow(1+a.cagr,1/12)-1;
+  let v=0;const spentPts=[],valPts=[];
+  for(let m=1;m<=months;m++){
+    const w=Math.sin(m*1.7+assetId.length)*a.vol+Math.sin(m*0.6+assetId.charCodeAt(0))*a.vol*0.5;
+    v=(v+c)*(1+rm+w/12);
+    spentPts.push(c*m);valPts.push(Math.max(v,c*0.2));
+  }
+  return{spent:c*months,value:v,spentPts,valPts};
+}
+
+/* ================= ③ 결과 인쇄 ================= */
+let shareData=null;
+function printResult(scroll){
+  const sec=$('secResult');
+  sec.classList.remove('hidden','printing');
+  void sec.offsetWidth;
+  if(!reduced)sec.classList.add('printing');
+
+  const a=ASSETS.find(x=>x.id===state.asset);
+  const r=simulate(state.asset);
+  const diff=r.value-r.spent,gain=diff>=0;
+
+  $('rSpent').textContent=won(r.spent);
+  $('rYears').textContent=state.years+'년';
+  $('rAsset').textContent=a.nm;
+
+  /* 카운트업 */
+  const vEl=$('rValue');
+  if(reduced){vEl.textContent=won(r.value);}
+  else{
+    const t0=performance.now(),dur=1400,delay=350;
+    vEl.textContent='0원';
+    (function tick(t){
+      const p=Math.min(Math.max(t-t0-delay,0)/dur,1),e=1-Math.pow(1-p,3);
+      vEl.textContent=won(r.value*e);
+      if(p<1)requestAnimationFrame(tick);
+      else if(navigator.vibrate)navigator.vibrate(25);
+    })(t0);
+  }
+
+  const dEl=$('rDiff');
+  dEl.className='diff-num '+(gain?'gain':'loss');
+  dEl.textContent=gain?`(${won(diff)} 놓침)`:'(안 사길 잘함)';
+
+  /* 껄무새 + 도장 */
+  const pf=$('rParrot');pf.setAttribute('class','parrot-fig');
+  const st=$('stamp');st.classList.remove('slam');void st.offsetWidth;
+  if(gain){
+    const lv=LEVELS.find(l=>diff<l.max);
+    pf.classList.add(lv.cls);
+    st.textContent='껄';st.style.borderColor='var(--stamp)';st.style.color='var(--stamp)';
+    $('rSay').textContent=lv.say;
+    $('rConv').innerHTML='* '+CONV.find(c=>diff<c.max).t;
+  }else{
+    pf.classList.add('relief');
+    st.textContent='휴';st.style.borderColor='var(--parrot)';st.style.color='var(--parrot)';
+    $('rSay').textContent='안 사길 잘했다. 칭찬해.';
+    $('rConv').innerHTML='* 가끔은 소비가 이깁니다';
+  }
+  if(!reduced)st.classList.add('slam');
+
+  drawChart(r);
+  $('assetToggle').innerHTML=ASSETS.map(x=>
+    `<button class="opt red ${x.id===state.asset?'on':''}" onclick="state.asset='${x.id}';printResult(false)">${x.nm}</button>`).join('');
+  $('bcNum').textContent=String(Math.round(diff)).replace(/[^0-9]/g,'').padStart(10,'8').slice(0,10).split('').join(' ');
+
+  /* 공유 데이터 */
+  const firstId=Object.keys(state.sel)[0];
+  const obj=PRESETS.find(p=>p.id===firstId).obj;
+  shareData={
+    line:gain?`나는 ${obj}(으)로<br>${a.nm} ${won(diff)}어치를<br>마셨습니다`
+             :`${a.nm} 안 사고<br>${obj} 사길 잘했습니다`,
+    diff:(gain?'+':'')+won(diff), gray:!gain
+  };
+  if(scroll)setTimeout(()=>sec.scrollIntoView({block:'start'}),80);
+}
+
+/* 잉크 차트 */
+function drawChart(r){
+  const svg=$('chart'),W=320,H=110,pad=6;
+  const max=Math.max(...r.valPts,...r.spentPts)*1.05;
+  const px=i=>pad+(W-2*pad)*i/(r.valPts.length-1);
+  const py=v=>H-pad-(H-2*pad)*v/max;
+  const path=pts=>pts.map((v,i)=>(i?'L':'M')+px(i).toFixed(1)+' '+py(v).toFixed(1)).join(' ');
+  svg.innerHTML=`
+    <path d="${path(r.spentPts)}" fill="none" stroke="#191612" stroke-width="1.6" stroke-dasharray="3 4" opacity=".45"/>
+    <path id="vl" d="${path(r.valPts)}" fill="none" stroke="#191612" stroke-width="2.4" stroke-linecap="round"/>`;
+  if(!reduced){
+    const line=svg.querySelector('#vl'),L=line.getTotalLength();
+    line.style.strokeDasharray=L;line.style.strokeDashoffset=L;
+    line.style.transition='stroke-dashoffset 1.3s ease-out .5s';
+    requestAnimationFrame(()=>requestAnimationFrame(()=>line.style.strokeDashoffset=0));
+  }
+}
+
+function openShare(){
+  $('shLine').innerHTML=shareData.line;
+  $('shDiff').textContent=shareData.diff;
+  $('shDiff').style.color=shareData.gray?'var(--ink-soft)':'var(--stamp)';
+  $('shParrotFig').style.filter=shareData.gray?'':'none';
+  $('shareModal').style.display='flex';
+}
+function restart(){
+  state.sel={};
+  $('secCond').classList.add('hidden');
+  $('secResult').classList.add('hidden');
+  renderItems();updateTotal();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+renderItems();
+</script>
+</body>
+</html>

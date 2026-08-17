@@ -1,0 +1,5 @@
+# macOS
+.DS_Store
+
+# Tooling logs / scratch
+app/midscene_run/
